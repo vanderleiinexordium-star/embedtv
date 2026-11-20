@@ -44,15 +44,20 @@ video{display:block;width:100%;aspect-ratio:16/9;background:#030407;max-height:6
 <script>
 const API='/.netlify/functions/channels';
 const $=id=>document.getElementById(id);
-let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null;
+let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null, categoryMap={};
 function normalize(payload){
- let list=Array.isArray(payload)?payload:(payload?.channels||payload?.data||payload?.results||payload?.items||[]);
+ const cats=Array.isArray(payload?.categories)?payload.categories:[];
+ categoryMap=Object.fromEntries(cats.map(c=>[String(c.id),c.name]));
+ const list=Array.isArray(payload)?payload:(payload?.channels||payload?.data?.channels||payload?.data||payload?.results||payload?.items||[]);
  if(!Array.isArray(list)) return [];
  return list.map((x,i)=>{
   let urls=x.url??x.stream_url??x.stream??x.src??x.m3u8??x.link??'';
   if(Array.isArray(urls)) urls=urls[0]||'';
   if(urls&&typeof urls==='object') urls=urls.url||urls.src||'';
-  return {id:String(x.id??x.slug??i),name:x.name??x.title??x.nome??`Canal ${i+1}`,logo:x.logo??x.image??x.poster??x.icon??'',cat:x.category??x.group??x.categoria??'Outros',url:typeof urls==='string'?urls:''};
+  const ids=Array.isArray(x.categories)?x.categories.map(v=>String(typeof v==='object'?v.id:v)):[];
+  const labels=ids.map(id=>categoryMap[id]).filter(Boolean).filter(n=>n!=='Todos');
+  const cat=labels.find(n=>n!=='Filmes e Séries')||labels[0]||x.category||x.group||x.categoria||'TV';
+  return {id:String(x.id??x.slug??i),name:x.name??x.title??x.nome??`Canal ${i+1}`,logo:x.image??x.logo??x.poster??x.icon??'',cat,url:typeof urls==='string'?urls:''};
  }).filter(x=>x.name);
 }
 function safeUrl(s){try{let u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
