@@ -13,7 +13,7 @@ function isVodEntry(extinf, streamUrl) {
   if (VOD_CATEGORY.test(group) || VOD_TYPE.test(extinf)) return true;
   try {
     const parsed = new URL(streamUrl);
-    if (VOD_PATH.test(parsed.pathname) || VOD_EXTENSION.test(parsed.pathname)) return true;
+    if (VOD_PATH.test(parsed.pathname)) return true;
   } catch {}
   return false;
 }
