@@ -59,7 +59,7 @@ button:focus-visible{outline:3px solid #ff6d8b;outline-offset:3px}
 </main>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
 <script>
-const API='/.netlify/functions/iptv';
+const API='/.netlify/functions/channels';
 const $=id=>document.getElementById(id);
 const PAGE_SIZE=60;
 let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null;
