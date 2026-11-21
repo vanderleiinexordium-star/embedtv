@@ -237,6 +237,7 @@ async function loadLargePlaylist(url){
  }
  pending+=decoder.decode();if(pending)consumeLine(pending);
  useCustomChannels(parsed);
+ $('playlistMessage').textContent=parsed.length.toLocaleString('pt-BR')+' canais ao vivo carregados; '+(Number(status.removedVodEntries)||0).toLocaleString('pt-BR')+' filmes/séries removidos. Categorias preservadas.';
 }
 $('loadPlaylist').onclick=async()=>{
  const url=$('playlistUrl').value.trim();if(!url){$('playlistMessage').textContent='Cole o link M3U primeiro.';return}
