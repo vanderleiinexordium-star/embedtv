@@ -1,15 +1,15 @@
 import { getStore } from "@netlify/blobs";
 
 const MAX_PLAYLIST_BYTES = 100 * 1024 * 1024;
-const VOD_CATEGORY = /(?:^|[\\s._|/-])(?:filmes?|movies?|cinema|vod|s[ée]ries?|series|temporadas?|seasons?|epis[óo]dios?|episodes?)(?:$|[\\s._|/-])/i;
-const VOD_PATH = /(?:^|\\/)(?:movie|movies|series|vod)(?:\\/|$)/i;
-const VOD_TYPE = /(?:^|[\\s,;])(?:tvg-)?type=["']?(?:movie|series|vod)(?:["';,\\s]|$)/i;
-const VOD_EXTENSION = /\\.(?:mp4|mkv|avi|mov|wmv|flv|m4v)$/i;
+const VOD_CATEGORY = /(?:^|[\s._|/-])(?:filmes?|movies?|cinema|vod|s[ée]ries?|series|temporadas?|seasons?|epis[óo]dios?|episodes?)(?:$|[\s._|/-])/i;
+const VOD_PATH = /(?:^|\/)(?:movie|movies|series|vod)(?:\/|$)/i;
+const VOD_TYPE = /(?:^|[\s,;])(?:tvg-)?type=["']?(?:movie|series|vod)(?:["';,\s]|$)/i;
+const VOD_EXTENSION = /\.(?:mp4|mkv|avi|mov|wmv|flv|m4v)$/i;
 
 export const config = { background: true };
 
 function isVodEntry(extinf, streamUrl) {
-  const group = (extinf.match(/\\bgroup-title="([^"]*)"/i) || [])[1] || "";
+  const group = (extinf.match(/\bgroup-title="([^"]*)"/i) || [])[1] || "";
   if (VOD_CATEGORY.test(group) || VOD_TYPE.test(extinf)) return true;
   try {
     const parsed = new URL(streamUrl);
