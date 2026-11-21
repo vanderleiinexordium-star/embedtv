@@ -31,7 +31,4 @@ exports.handler = async function () {
   } catch (error) {
     return {
       statusCode: 500,
-      body: "Não foi possível carregar a lista IPTV."
-    };
-  }
-};
+  body: "Erro IPTV: " + (error.message || "falha desconhecida")
