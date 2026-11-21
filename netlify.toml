@@ -1,7 +1,3 @@
 [build]
   publish = "."
   functions = "netlify/functions"
-
-[[edge_functions]]
-function = "playlist-proxy"
-path = "/api/playlist-worker-invoke"
