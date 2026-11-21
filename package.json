@@ -1,0 +1,9 @@
+{
+  "name": "playbibostv",
+  "private": true,
+  "version": "1.0.0",
+  "description": "PlayBibosTV Netlify functions",
+  "dependencies": {
+    "@netlify/blobs": "11.1.9"
+  }
+}
