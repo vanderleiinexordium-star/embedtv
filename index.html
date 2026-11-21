@@ -22,6 +22,7 @@ video{display:block;width:100%;aspect-ratio:16/9;background:#030407;max-height:6
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:13px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:17px;padding:14px;min-height:142px;text-align:center;cursor:pointer;color:white}
 .card:hover,.card:focus{border-color:var(--red);transform:translateY(-2px)}
+.card-wrap{position:relative;min-width:0}.fav-toggle{position:absolute;right:8px;top:8px;border:1px solid #394356;background:#080a10e8;color:#fff;border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:17px}.fav-toggle.active{color:#ffcf58;border-color:#ffcf58}
 .card img{width:68px;height:68px;object-fit:contain;margin:0 auto 8px;display:block}
 .card b{display:block;font-size:14px;overflow-wrap:anywhere}
 .notice{border:1px dashed #394356;border-radius:20px;padding:26px;text-align:center;color:var(--muted)}
@@ -30,125 +31,115 @@ video{display:block;width:100%;aspect-ratio:16/9;background:#030407;max-height:6
 </style>
 </head>
 <body>
-<header><div class="logo">EMBED<span>TV</span></div><input id="search" placeholder="Buscar canal..." aria-label="Buscar canal"></header>
+<header><div class="logo">EMBED<span>TV</span></div><input id="search" placeholder="Buscar canal..." aria-label="Buscar canal" autocomplete="off"></header>
 <main>
 <section class="player">
 <video id="video" controls playsinline></video>
 <div class="player-info"><img id="currentLogo" class="channel-icon" alt="" src=""><div><strong id="currentName">Escolha um canal para assistir</strong><div class="muted" id="currentDesc">A transmissão selecionada aparecerá aqui.</div></div><div class="live">● AO VIVO</div></div>
 </section>
 <div class="controls" id="categories"><button class="chip active" data-category="all">Todos</button><button class="chip" data-category="favorites">★ Favoritos</button></div>
-<div class="section-head"><h2 id="listTitle">Todos os canais</h2><span class="muted small" id="status">Carregando canais…</span></div>
+<div class="section-head"><h2 id="listTitle">Todos os canais</h2><span class="muted small" id="status">Carregando catálogo…</span></div>
 <div id="channels" class="grid"><div class="notice">Buscando canais…</div></div>
+<div class="section-head"><button class="chip" id="previousPage" type="button" disabled>← Anterior</button><span class="muted small" id="pageInfo">Página 1</span><button class="chip" id="nextPage" type="button" disabled>Próxima →</button></div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
 <script>
-const API='/.netlify/functions/channels';
+const API='/.netlify/functions/iptv';
 const $=id=>document.getElementById(id);
-let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null, categoryMap={};
-function normalize(payload){
- const cats=Array.isArray(payload?.categories)?payload.categories:[];
- categoryMap=Object.fromEntries(cats.map(c=>[String(c.id),c.name]));
- const list=Array.isArray(payload)?payload:(payload?.channels||payload?.data?.channels||payload?.data||payload?.results||payload?.items||[]);
- if(!Array.isArray(list)) return [];
- return list.map((x,i)=>{
-  let urls=x.url??x.stream_url??x.stream??x.src??x.m3u8??x.link??'';
-  if(Array.isArray(urls)) urls=urls[0]||'';
-  if(urls&&typeof urls==='object') urls=urls.url||urls.src||'';
-  const ids=Array.isArray(x.categories)?x.categories.map(v=>String(typeof v==='object'?v.id:v)):[];
-  const labels=ids.map(id=>categoryMap[id]).filter(Boolean).filter(n=>n!=='Todos');
-  const cat=labels.find(n=>n!=='Filmes e Séries')||labels[0]||x.category||x.group||x.categoria||'TV';
-  return {id:String(x.id??x.slug??i),name:x.name??x.title??x.nome??`Canal ${i+1}`,logo:x.image??x.logo??x.poster??x.icon??'',cat,url:typeof urls==='string'?urls:''};
- }).filter(x=>x.name);
+const PAGE_SIZE=60;
+let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null;
+let currentPage=1,totalPages=1,searchTimer=null,requestToken=0;
+let categoryNames=[];
+function safeUrl(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
+function makeButton(label, active, action){const b=document.createElement('button');b.type='button';b.className='chip'+(active?' active':'');b.textContent=label;b.onclick=action;return b}
+function renderCategories(){
+ const root=$('categories');root.innerHTML='';
+ root.append(makeButton('Todos',category==='all',()=>chooseCategory('all')));
+ root.append(makeButton('★ Favoritos',category==='favorites',()=>chooseCategory('favorites')));
+ categoryNames.forEach(name=>root.append(makeButton(name,category===name,()=>chooseCategory(name))));
 }
-function safeUrl(s){try{let u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
+function chooseCategory(next){category=next;currentPage=1;renderCategories();loadChannels();}
 function render(){
- const q=$('search').value.toLowerCase();
- let items=all.filter(c=>(category==='all'||(category==='favorites'?favorites.includes(c.id):c.cat===category))&&(`${c.name} ${c.cat}`).toLowerCase().includes(q));
- $('listTitle').textContent=category==='favorites'?'Favoritos':category==='all'?'Todos os canais':category;
- $('channels').innerHTML='';
- if(!items.length){$('channels').innerHTML='<div class="notice">Nenhum canal encontrado.</div>';return}
+ const root=$('channels');root.innerHTML='';
+ let items=all;
+ if(category==='favorites') items=items.filter(c=>favorites.includes(c.id));
+ if(!items.length){root.innerHTML='<div class="notice">Nenhum canal encontrado nesta página. Tente outra categoria ou busca.</div>';return}
  items.forEach(c=>{
+  const wrap=document.createElement('div');wrap.className='card-wrap';
   const el=document.createElement('button');el.className='card';el.type='button';
-  const img=document.createElement('img');img.alt='';img.src=safeUrl(c.logo)||'';
-  img.onerror=()=>{img.style.display='none'};
+  const img=document.createElement('img');img.alt='';img.loading='lazy';img.src=safeUrl(c.logo)||'';img.onerror=()=>{img.style.display='none'};
   const name=document.createElement('b');name.textContent=(favorites.includes(c.id)?'★ ':'')+c.name;
-  const cat=document.createElement('span');cat.className='muted small';cat.textContent=c.cat;
-  el.append(img,name,cat);el.onclick=()=>play(c);$('channels').append(el);
-});
-}
-function play(c){
-  const src=safeUrl(c.url);
-  $('currentName').textContent=c.name;
-  $('currentDesc').textContent=src?'Reproduzindo transmissão selecionada':'Link indisponível';
-  $('currentLogo').src=safeUrl(c.logo);
-  $('currentLogo').style.visibility=safeUrl(c.logo)?'visible':'hidden';
-
-  const v=$('video');
-
-  if(hls){
-    hls.destroy();
-    hls=null;
-  }
-
-  const oldFrame=$('channelFrame');
-  if(oldFrame) oldFrame.remove();
-
-  v.pause();
-  v.removeAttribute('src');
-  v.load();
-  v.style.display='block';
-
-  if(!src) return;
-
-  const direct=/\.(m3u8|mp4|webm|ogg)(?:$|[?#])/i.test(src);
-
-  if(direct){
-    if(window.Hls && Hls.isSupported() && /\.m3u8(?:$|[?#])/i.test(src)){
-      hls=new Hls();
-      hls.loadSource(src);
-      hls.attachMedia(v);
-      hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}));
-    }else{
-      v.src=src;
-      v.play().catch(()=>{});
-    }
-  }else{
-    v.style.display='none';
-
-    const frame=document.createElement('iframe');
-    frame.id='channelFrame';
-    frame.src=src;
-    frame.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
-    frame.allowFullscreen=true;
-    frame.style.cssText='width:100%;height:100%;min-height:240px;border:0;background:#000';
-
-    v.parentNode.insertBefore(frame,v.nextSibling);
-  }
-}
-
-function categories(){
- const cats=[...new Set(all.map(c=>c.cat).filter(Boolean))].sort();
- $('categories').innerHTML='';
- [['all','Todos'],['favorites','★ Favoritos'],...cats.map(c=>[c,c])].forEach(([id,label],i)=>{
-  const b=document.createElement('button');b.className='chip'+(category===id?' active':'');b.textContent=label;b.dataset.category=id;b.onclick=()=>{category=id;categories();render()};$('categories').append(b);
+  const cat=document.createElement('span');cat.className='muted small';cat.textContent=c.category;
+  el.append(img,name,cat);el.onclick=()=>play(c);
+  const fav=document.createElement('button');fav.type='button';fav.className='fav-toggle'+(favorites.includes(c.id)?' active':'');fav.textContent=favorites.includes(c.id)?'★':'☆';fav.setAttribute('aria-label',favorites.includes(c.id)?'Remover dos favoritos':'Adicionar aos favoritos');
+  fav.onclick=(event)=>{event.stopPropagation();favorites=favorites.includes(c.id)?favorites.filter(id=>id!==c.id):[...favorites,c.id];localStorage.setItem('embedtv-favs',JSON.stringify(favorites));if(category==='favorites')loadChannels();else render()};
+  wrap.append(el,fav);root.append(wrap);
  });
 }
-$('search').addEventListener('input',render);
-async function load(){
- $('status').textContent='Conectando à fonte…';
+function updatePager(){
+ $('pageInfo').textContent=`Página ${currentPage} de ${Math.max(1,totalPages)}`;
+ $('previousPage').disabled=currentPage<=1;
+ $('nextPage').disabled=currentPage>=totalPages;
+}
+async function loadCategories(){
+ const response=await fetch(API+'?action=categories',{headers:{Accept:'application/json'}});
+ const data=await response.json();if(!response.ok)throw new Error(data.error||'Falha ao carregar categorias.');
+ categoryNames=(data.categories||[]).map(c=>c.name).filter(Boolean);
+ renderCategories();
+}
+async function loadChannels(){
+ const token=++requestToken;
+ $('status').textContent='Carregando canais…';
+ $('channels').innerHTML='<div class="notice">Carregando catálogo…</div>';
+ const params=new URLSearchParams({action:'channels',page:String(currentPage),limit:String(PAGE_SIZE)});
+ if(category==='favorites'){if(!favorites.length){all=[];$('status').textContent='0 favoritos';render();totalPages=1;updatePager();return;}params.set('favorites',favorites.join(','));}
+ const query=$('search').value.trim();if(query)params.set('q',query);
+ if(category!=='all'&&category!=='favorites')params.set('category',category);
  try{
-  const r=await fetch(API,{headers:{'Accept':'application/json'}});
-  const data=await r.json();
-  if(!r.ok) throw new Error(data.error||`HTTP ${r.status}`);
-  all=normalize(data);
-  if(!all.length) throw new Error('A resposta da API não contém uma lista de canais reconhecível.');
-  $('status').textContent=`${all.length} canais`;
-  categories();render();
- }catch(e){
+  const response=await fetch(API+'?'+params.toString(),{headers:{Accept:'application/json'}});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||`Erro HTTP ${response.status}`);
+  if(token!==requestToken)return;
+  all=data.channels||[];totalPages=data.totalPages||1;
+  $('status').textContent=`${Number(data.total||0).toLocaleString('pt-BR')} resultados`;
+  $('listTitle').textContent=category==='favorites'?'Favoritos':category==='all'?'Todos os canais':category;
+  render();updatePager();
+ }catch(error){
+  if(token!==requestToken)return;
   $('status').textContent='Fonte indisponível';
-  $('channels').innerHTML=`<div class="notice"><h3>Não foi possível carregar os canais</h3><p class="error">${String(e.message||e)}</p><p>O proxy do site tentou consultar a API. Se o erro persistir, a fonte pode estar indisponível ou exigir outro formato de acesso.</p><button class="chip active" onclick="load()">Tentar novamente</button></div>`;
+  $('channels').innerHTML='';
+  const notice=document.createElement('div');notice.className='notice';
+  const title=document.createElement('h3');title.textContent='Não foi possível carregar o catálogo';
+  const detail=document.createElement('p');detail.className='error';detail.textContent=error.message||String(error);
+  const retry=makeButton('Tentar novamente',true,loadChannels);notice.append(title,detail,retry);$('channels').append(notice);
  }
 }
-load();
+function play(channel){
+ const src=safeUrl(channel.url);$('currentName').textContent=channel.name;
+ $('currentDesc').textContent=src?'Transmissão selecionada':'Endereço de transmissão indisponível';
+ const logo=safeUrl(channel.logo);$('currentLogo').src=logo;$('currentLogo').style.visibility=logo?'visible':'hidden';
+ const video=$('video');if(hls){hls.destroy();hls=null;}
+ const oldFrame=$('channelFrame');if(oldFrame)oldFrame.remove();
+ video.pause();video.removeAttribute('src');video.load();video.style.display='block';
+ if(!src)return;
+ if(/\.m3u8(?:$|[?#])/i.test(src)&&window.Hls&&Hls.isSupported()){
+  hls=new Hls();hls.loadSource(src);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,()=>video.play().catch(()=>{}));
+ }else if(/\.(mp4|webm|ogg)(?:$|[?#])/i.test(src)){
+  video.src=src;video.play().catch(()=>{});
+ }else{
+  video.style.display='none';const frame=document.createElement('iframe');frame.id='channelFrame';frame.src=src;
+  frame.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';frame.allowFullscreen=true;
+  frame.title='Player de '+channel.name;frame.style.cssText='width:100%;height:100%;min-height:240px;aspect-ratio:16/9;border:0;background:#000';
+  video.parentNode.insertBefore(frame,video.nextSibling);
+ }
+}
+$('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{currentPage=1;loadChannels()},350)});
+$('previousPage').onclick=()=>{if(currentPage>1){currentPage--;loadChannels()}};
+$('nextPage').onclick=()=>{if(currentPage<totalPages){currentPage++;loadChannels()}};
+async function start(){
+ $('status').textContent='Conectando à playlist…';
+ try{await loadCategories();await loadChannels();}
+ catch(error){$('status').textContent='Falha ao iniciar';$('channels').innerHTML='';const n=document.createElement('div');n.className='notice';n.textContent=error.message||String(error);$('channels').append(n)}
+}
+start();
 </script>
 </body></html>
