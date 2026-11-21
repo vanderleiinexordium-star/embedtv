@@ -67,8 +67,9 @@ export default async (request) => {
     return json(502, { error: "Não foi possível iniciar o processamento da lista." });
   }
   if (!launched.ok && launched.status !== 202) {
-    await store.setJSON("jobs/" + id, { state: "failed", tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt, error: "Não foi possível iniciar o processamento." });
-    return json(502, { error: "A Netlify não iniciou o processamento da lista." });
+    const detail = (await launched.text().catch(() => "")).slice(0, 240);
+    await store.setJSON("jobs/" + id, { state: "failed", tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt, error: "Falha HTTP " + launched.status });
+    return json(502, { error: "A Netlify não iniciou o processamento (HTTP " + launched.status + "). " + detail });
   }
   return json(202, { id, token, expiresAt });
 };
