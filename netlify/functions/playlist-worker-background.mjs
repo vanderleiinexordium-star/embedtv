@@ -4,7 +4,6 @@ const MAX_PLAYLIST_BYTES = 100 * 1024 * 1024;
 const VOD_CATEGORY = /(?:^|[\s._|/-])(?:filmes?|movies?|cinema|vod|s[ée]ries?|series|temporadas?|seasons?|epis[óo]dios?|episodes?)(?:$|[\s._|/-])/i;
 const VOD_PATH = /(?:^|\/)(?:movie|movies|series|vod)(?:\/|$)/i;
 const VOD_TYPE = /(?:^|[\s,;])(?:tvg-)?type=["']?(?:movie|series|vod)(?:["';,\s]|$)/i;
-const VOD_EXTENSION = /\.(?:mp4|mkv|avi|mov|wmv|flv|m4v)$/i;
 
 export const config = { background: true };
 
@@ -76,10 +75,10 @@ export default async (request) => {
     };
 
     const consumeLine = (raw) => {
-      const line = raw.replace(/\\r$/, "");
+      const line = raw.replace(/\r$/, "");
       if (!line) {
         if (entryLines) entryLines.push("");
-        else appendOutput("\\n");
+        else appendOutput("\n");
         return;
       }
       if (line.startsWith("#EXTINF:")) {
@@ -91,20 +90,20 @@ export default async (request) => {
           entryLines.push(line);
           return;
         }
-        if (/^https?:\\/\\//i.test(line)) {
+        if (/^https?:\/\//i.test(line)) {
           const extinf = entryLines[0] || "";
           if (isVodEntry(extinf, line)) {
             removedCount++;
           } else {
             entryLines.push(line);
-            appendOutput(entryLines.join("\\n") + "\\n");
+            appendOutput(entryLines.join("\n") + "\n");
             keptCount++;
           }
         }
         entryLines = null;
         return;
       }
-      appendOutput(line + "\\n");
+      appendOutput(line + "\n");
     };
 
     while (true) {
@@ -116,14 +115,14 @@ export default async (request) => {
       if (headerProbe.length < 8192) headerProbe += decoded.slice(0, 8192 - headerProbe.length);
       pending += decoded;
       let newline;
-      while ((newline = pending.indexOf("\\n")) !== -1) {
+      while ((newline = pending.indexOf("\n")) !== -1) {
         consumeLine(pending.slice(0, newline));
         pending = pending.slice(newline + 1);
       }
     }
     pending += decoder.decode();
     if (pending) consumeLine(pending);
-    if (!headerProbe.replace(/^\\uFEFF/, "").trimStart().startsWith("#EXTM3U")) {
+    if (!headerProbe.replace(/^\uFEFF/, "").trimStart().startsWith("#EXTM3U")) {
       throw new Error("O provedor não retornou uma playlist M3U válida.");
     }
     if (keptCount === 0) throw new Error("Não encontrei canais ao vivo nessa lista. Nenhuma alteração foi aplicada.");
