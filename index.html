@@ -36,7 +36,7 @@ video{display:block;width:100%;aspect-ratio:16/9;background:#030407;max-height:7
 .card b{display:block;font-size:14px;line-height:1.3;overflow-wrap:anywhere}
 .fav-toggle{position:absolute;right:7px;top:7px;border:1px solid #394356;background:#080a10e8;color:#fff;border-radius:999px;width:32px;height:32px;cursor:pointer;font-size:17px;z-index:2}
 .fav-toggle.active{color:#ffcf58;border-color:#ffcf58}
-.notice{border:1px dashed #394356;border-radius:18px;padding:26px;text-align:center;color:var(--muted);grid-column:1/-1}
+.notice{border:1px dashed #394356;border-radius:18px;padding:26px;text-align:center;color:var(--muted);grid-column:1/-1}\n.playlist-tools{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:18px 0;padding:15px;background:#11141c;border:1px solid var(--line);border-radius:16px}.playlist-tools strong{width:100%}.playlist-tools input[type=url]{flex:1;min-width:220px;width:auto}.playlist-tools input[type=file]{width:auto;max-width:100%;font-size:13px}.playlist-tools .chip{white-space:nowrap}
 .error{color:#ff8da2}.small{font-size:13px}
 button:focus-visible{outline:3px solid #ff6d8b;outline-offset:3px}
 @media(max-width:700px){header{padding:13px 16px;gap:12px}.logo{font-size:25px}input{width:min(52vw,330px);padding:11px 12px}main{padding:16px 12px 42px}.player{border-radius:16px;margin-bottom:20px}.player-info{padding:11px 12px;min-height:70px}.channel-icon{width:44px;height:44px}.controls{gap:7px;margin:18px 0}.chip{padding:9px 13px;font-size:13px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.card{height:138px;padding:15px 9px 11px;border-radius:14px}.card img{width:58px;height:58px}.card b{font-size:13px}.section-head{margin:18px 0 12px}}
@@ -52,6 +52,14 @@ button:focus-visible{outline:3px solid #ff6d8b;outline-offset:3px}
 <video id="video" controls playsinline></video>
 <div class="player-info"><img id="currentLogo" class="channel-icon" alt="" src=""><div><strong id="currentName">Escolha um canal para assistir</strong><div class="muted" id="currentDesc">A transmissão selecionada aparecerá aqui.</div></div><div class="live">● AO VIVO</div></div>
 </section>
+<section class="playlist-tools" aria-label="Adicionar lista M3U">
+<strong>📺 Minha lista M3U</strong>
+<input id="playlistUrl" type="url" placeholder="Cole aqui o link da sua lista M3U" aria-label="Link da lista M3U" autocomplete="off">
+<button class="chip active" id="loadPlaylist" type="button">Carregar lista</button>
+<label class="chip" for="playlistFile">Abrir arquivo .m3u</label><input id="playlistFile" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/x-mpegURL">
+<button class="chip" id="defaultPlaylist" type="button">Canais padrão</button>
+<span class="muted small" id="playlistMessage">Sua lista será usada somente nesta sessão.</span>
+</section>
 <div class="controls" id="categories"><button class="chip active" data-category="all">Todos</button><button class="chip" data-category="favorites">★ Favoritos</button></div>
 <div class="section-head"><h2 id="listTitle">Todos os canais</h2><span class="muted small" id="status">Carregando catálogo…</span></div>
 <div id="channels" class="grid"><div class="notice">Buscando canais…</div></div>
@@ -62,7 +70,7 @@ button:focus-visible{outline:3px solid #ff6d8b;outline-offset:3px}
 const API='/.netlify/functions/channels';
 const $=id=>document.getElementById(id);
 const PAGE_SIZE=60;
-let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null;
+let all=[], category='all', customChannels=null, favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null;
 let currentPage=1,totalPages=1,searchTimer=null,requestToken=0;
 let categoryNames=[];
 function safeUrl(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
@@ -104,6 +112,21 @@ async function loadCategories(){
 }
 async function loadChannels(){
  const token=++requestToken;
+ if(customChannels){
+  let items=customChannels;
+  const query=$('search').value.trim().toLocaleLowerCase('pt-BR');
+  if(category==='favorites') items=items.filter(c=>favorites.includes(c.id));
+  else if(category!=='all') items=items.filter(c=>c.category===category);
+  if(query) items=items.filter(c=>c.name.toLocaleLowerCase('pt-BR').includes(query)||c.category.toLocaleLowerCase('pt-BR').includes(query));
+  totalPages=Math.max(1,Math.ceil(items.length/PAGE_SIZE));
+  currentPage=Math.min(currentPage,totalPages);
+  const start=(currentPage-1)*PAGE_SIZE;
+  all=items.slice(start,start+PAGE_SIZE);
+  $('status').textContent=`${items.length.toLocaleString('pt-BR')} resultados`;
+  $('listTitle').textContent=category==='favorites'?'Favoritos':category==='all'?'Minha lista M3U':category;
+  render();updatePager();
+  return;
+ }
  $('status').textContent='Carregando canais…';
  $('channels').innerHTML='<div class="notice">Carregando catálogo…</div>';
  const params=new URLSearchParams({action:'channels',page:String(currentPage),limit:String(PAGE_SIZE)});
@@ -150,6 +173,41 @@ function play(channel){
 $('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{currentPage=1;loadChannels()},350)});
 $('previousPage').onclick=()=>{if(currentPage>1){currentPage--;loadChannels()}};
 $('nextPage').onclick=()=>{if(currentPage<totalPages){currentPage++;loadChannels()}};
+function parseM3U(text){
+ const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/);const channels=[];let entry=null;
+ for(const raw of lines){const line=raw.trim();if(!line)continue;
+  if(line.startsWith('#EXTINF:')){
+   const comma=line.indexOf(',');const info=comma>=0?line.slice(0,comma):line;
+   const attr=(name)=>{const m=info.match(new RegExp('(?:^|\\s)'+name+'="([^"]*)"','i'));return m?m[1].trim():''};
+   entry={name:(comma>=0?line.slice(comma+1).trim():'')||attr('tvg-name')||'Canal sem nome',logo:attr('tvg-logo'),category:attr('group-title')||'Outros'};continue;
+  }
+  if(line.startsWith('#'))continue;
+  if(entry&&/^https?:\/\//i.test(line)){channels.push({id:line+'|'+entry.name,name:entry.name,logo:entry.logo,category:entry.category,url:line});}
+  entry=null;
+ }
+ return channels;
+}
+function useCustomPlaylist(text){
+ const parsed=parseM3U(text);if(!parsed.length)throw new Error('Não encontrei canais válidos nessa lista M3U.');
+ customChannels=parsed;category='all';currentPage=1;
+ categoryNames=[...new Set(parsed.map(c=>c.category))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ renderCategories();$('playlistMessage').textContent=parsed.length.toLocaleString('pt-BR')+' canais carregados nesta sessão.';
+ loadChannels();
+}
+$('loadPlaylist').onclick=async()=>{
+ const url=$('playlistUrl').value.trim();if(!url){$('playlistMessage').textContent='Cole o link M3U primeiro.';return}
+ $('loadPlaylist').disabled=true;$('playlistMessage').textContent='Buscando sua lista…';
+ try{const response=await fetch('/.netlify/functions/playlist',{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/plain'},body:JSON.stringify({url})});
+  const body=await response.text();if(!response.ok)throw new Error(body||'Não foi possível carregar a lista.');
+  useCustomPlaylist(body);
+ }catch(error){$('playlistMessage').textContent=error.message||'Falha ao carregar a lista.'}
+ finally{$('loadPlaylist').disabled=false}
+};
+$('playlistFile').onchange=async(event)=>{
+ const file=event.target.files&&event.target.files[0];if(!file)return;
+ try{useCustomPlaylist(await file.text())}catch(error){$('playlistMessage').textContent=error.message||'Arquivo inválido.'}
+};
+$('defaultPlaylist').onclick=()=>{customChannels=null;category='all';currentPage=1;categoryNames=[];renderCategories();$('playlistMessage').textContent='Exibindo os canais padrão.';loadCategories().then(loadChannels).catch(loadChannels)};
 async function start(){
  $('status').textContent='Conectando à playlist…';
  try{await loadCategories();await loadChannels();}
