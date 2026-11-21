@@ -74,7 +74,22 @@ async function getChannels() {
     url.searchParams.set('password', password);
     url.searchParams.set('type', 'm3u_plus');
 
-    const response = await fetch(url.toString(), { headers: { Accept: 'application/x-mpegURL, audio/x-mpegurl, text/plain, */*' } });
+    let response;
+    try {
+      response = await fetch(url.toString(), {
+        headers: { Accept: 'application/x-mpegURL, audio/x-mpegurl, text/plain, */*' },
+        signal: AbortSignal.timeout(20000)
+      });
+    } catch (error) {
+      const code = error && error.cause && error.cause.code
+        ? error.cause.code
+        : (error && error.code) || (error && error.name) || 'UNKNOWN';
+      const reason = error && error.cause && error.cause.message
+        ? error.cause.message
+        : (error && error.message) || 'Falha de rede';
+      console.error('IPTV upstream connection failed:', { code, reason });
+      throw new Error('Falha ao conectar ao servidor IPTV (' + code + ').');
+    }
     if (!response.ok) throw new Error('O provedor IPTV respondeu HTTP ' + response.status + '.');
 
     const playlist = await response.text();
