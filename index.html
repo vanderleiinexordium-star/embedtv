@@ -74,7 +74,8 @@ function render(){
   const name=document.createElement('b');name.textContent=(favorites.includes(c.id)?'★ ':'')+c.name;
   const cat=document.createElement('span');cat.className='muted small';cat.textContent=c.cat;
   el.append(img,name,cat);el.onclick=()=>play(c);$('channels').append(el);
- });
+});
+}
 function play(c){
   const src=safeUrl(c.url);
   $('currentName').textContent=c.name;
