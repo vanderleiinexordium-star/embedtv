@@ -44,7 +44,7 @@ video{display:block;width:100%;aspect-ratio:16/9;background:#030407;max-height:6
 </main>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
 <script>
-const API='/.netlify/functions/iptv';
+const API='/.netlify/functions/channels';
 const $=id=>document.getElementById(id);
 const PAGE_SIZE=60;
 let all=[], category='all', favorites=JSON.parse(localStorage.getItem('embedtv-favs')||'[]'), hls=null;
