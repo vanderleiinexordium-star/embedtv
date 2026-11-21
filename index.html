@@ -112,6 +112,21 @@ async function loadCategories(){
 }
 async function loadChannels(){
  const token=++requestToken;
+ if(customChannels){
+  let items=customChannels;
+  const query=$('search').value.trim().toLocaleLowerCase('pt-BR');
+  if(category==='favorites') items=items.filter(c=>favorites.includes(c.id));
+  else if(category!=='all') items=items.filter(c=>c.category===category);
+  if(query) items=items.filter(c=>c.name.toLocaleLowerCase('pt-BR').includes(query)||c.category.toLocaleLowerCase('pt-BR').includes(query));
+  totalPages=Math.max(1,Math.ceil(items.length/PAGE_SIZE));
+  currentPage=Math.min(currentPage,totalPages);
+  const start=(currentPage-1)*PAGE_SIZE;
+  all=items.slice(start,start+PAGE_SIZE);
+  $('status').textContent=`${items.length.toLocaleString('pt-BR')} resultados`;
+  $('listTitle').textContent=category==='favorites'?'Favoritos':category==='all'?'Minha lista M3U':category;
+  render();updatePager();
+  return;
+ }
  $('status').textContent='Carregando canais…';
  $('channels').innerHTML='<div class="notice">Carregando catálogo…</div>';
  const params=new URLSearchParams({action:'channels',page:String(currentPage),limit:String(PAGE_SIZE)});
