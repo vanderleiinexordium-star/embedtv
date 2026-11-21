@@ -8,7 +8,7 @@ exports.handler = async function () {
       throw new Error("Credenciais IPTV não configuradas");
     }
 
-    const url = new URL("http://rtweb.zapto.org:80/get.php");
+    const url = new URL("https://p2pro.space/get.php");
     url.searchParams.set("username", username);
     url.searchParams.set("password", password);
     url.searchParams.set("type", "m3u_plus");
