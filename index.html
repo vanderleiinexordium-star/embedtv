@@ -219,7 +219,7 @@ async function loadLargePlaylist(url){
    entry={name:(comma>=0?line.slice(comma+1).trim():'')||attr('tvg-name')||'Canal sem nome',logo:attr('tvg-logo'),category:attr('group-title')||'Outros'};return;
   }
   if(line.startsWith('#'))return;
-  if(entry&&/^https?:\\/\\//i.test(line))parsed.push({id:line+'|'+entry.name,name:entry.name,logo:entry.logo,category:entry.category,url:line});
+  if(entry&&/^https?:\/\//i.test(line))parsed.push({id:line+'|'+entry.name,name:entry.name,logo:entry.logo,category:entry.category,url:line});
   entry=null;
   if(parsed.length>150000)throw new Error('A lista contém canais demais para este aparelho (limite de 150 mil).');
  };
@@ -229,7 +229,7 @@ async function loadLargePlaylist(url){
   if(!part.ok){let data={};try{data=await part.json()}catch{}throw new Error(data.error||'Falha ao receber uma parte da lista.')}
   const bytes=await part.arrayBuffer();if(!bytes.byteLength)throw new Error('A lista foi recebida incompleta.');
   pending+=decoder.decode(bytes,{stream:true});
-  const lines=pending.split(/\\r?\\n/);pending=lines.pop()||'';for(const line of lines)consumeLine(line);
+  const lines=pending.split(/\r?\n/);pending=lines.pop()||'';for(const line of lines)consumeLine(line);
   offset+=bytes.byteLength;$('playlistMessage').textContent='Lendo lista: '+Math.min(100,Math.round(offset/total*100))+'%';
  }
  pending+=decoder.decode();if(pending)consumeLine(pending);
