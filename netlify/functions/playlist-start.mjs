@@ -54,7 +54,7 @@ export default async (request) => {
     createdAt: Date.now()
   });
 
-  const workerUrl = new URL("/.netlify/functions/playlist-worker-background", request.url);
+  const workerUrl = new URL("/api/playlist-worker-invoke", request.url);
   let launched;
   try {
     launched = await fetch(workerUrl, {
