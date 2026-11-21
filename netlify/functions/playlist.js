@@ -25,6 +25,7 @@ exports.handler = async function (event) {
 
   const username = url.searchParams.get('username');
   const password = url.searchParams.get('password');
+  const output = inputOutput(url.searchParams.get('output'));
   if (!username || !password || username.length > 200 || password.length > 200) {
     return json(400, JSON.stringify({ error: 'O link precisa conter usuário e senha da lista.' }));
   }
@@ -32,7 +33,6 @@ exports.handler = async function (event) {
   url.searchParams.set('username', username);
   url.searchParams.set('password', password);
   url.searchParams.set('type', 'm3u_plus');
-  const output = inputOutput(url.searchParams.get('output'));
   url.searchParams.set('output', output);
 
   try {
