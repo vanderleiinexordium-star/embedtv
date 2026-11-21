@@ -21,5 +21,5 @@ export default async (request) => {
   const meta = await store.get("jobs/" + id, { type: "json", consistency: "strong" });
   if (!authorized(meta, token)) return json(404, { error: "Lista não encontrada ou acesso expirado." });
   if (meta.expiresAt < Date.now()) return json(410, { error: "Esta lista temporária expirou. Carregue novamente." });
-  return json(200, { state: meta.state, bytes: meta.bytes || 0, error: meta.error || null, expiresAt: meta.expiresAt });
+  return json(200, { state: meta.state, bytes: meta.bytes || 0, liveChannels: meta.liveChannels || 0, removedVodEntries: meta.removedVodEntries || 0, sourceBytes: meta.sourceBytes || 0, error: meta.error || null, expiresAt: meta.expiresAt });
 };
