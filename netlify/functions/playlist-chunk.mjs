@@ -16,7 +16,7 @@ export default async (request) => {
   if (request.method !== "GET") return json(405, { error: "Use GET." });
   const url = new URL(request.url);
   const id = url.searchParams.get("id") || "";
-  const token = url.searchParams.get("token") || "";
+  const token = (request.headers.get("authorization") || "").replace(/^Bearer\\s+/i, "");
   const offset = Number(url.searchParams.get("offset"));
   if (!/^[0-9a-f-]{36}$/i.test(id) || !Number.isSafeInteger(offset) || offset < 0) return json(400, { error: "Solicitação inválida." });
   const store = getStore("playbibostv-playlists");
