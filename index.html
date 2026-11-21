@@ -215,7 +215,7 @@ async function loadLargePlaylist(url){
   const line=raw.trim();if(!line)return;
   if(line.startsWith('#EXTINF:')){
    const comma=line.indexOf(',');const info=comma>=0?line.slice(0,comma):line;
-   const attr=name=>{const m=info.match(new RegExp('(?:^|\\\\s)'+name+'="([^"]*)"','i'));return m?m[1].trim():''};
+   const attr=name=>{const m=info.match(new RegExp('(?:^|\\s)'+name+'="([^"]*)"','i'));return m?m[1].trim():''};
    entry={name:(comma>=0?line.slice(comma+1).trim():'')||attr('tvg-name')||'Canal sem nome',logo:attr('tvg-logo'),category:attr('group-title')||'Outros'};return;
   }
   if(line.startsWith('#'))return;
