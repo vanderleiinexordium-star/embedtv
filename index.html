@@ -202,7 +202,7 @@ async function loadLargePlaylist(url){
  const {id,token}=started;let status;
  for(let attempt=0;attempt<560;attempt++){
   await wait(1500);
-  const check=await fetch('/.netlify/functions/playlist-status?id='+encodeURIComponent(id)+'&token='+encodeURIComponent(token),{cache:'no-store'});
+  const check=await fetch('/.netlify/functions/playlist-status?id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
   status=await check.json();if(!check.ok)throw new Error(status.error||'Falha ao consultar a lista.');
   if(status.state==='complete')break;
   if(status.state==='failed')throw new Error(status.error||'O provedor não conseguiu entregar a lista.');
@@ -225,7 +225,7 @@ async function loadLargePlaylist(url){
  };
  let offset=0;
  while(offset<total){
-  const part=await fetch('/.netlify/functions/playlist-chunk?id='+encodeURIComponent(id)+'&token='+encodeURIComponent(token)+'&offset='+offset,{cache:'no-store'});
+  const part=await fetch('/.netlify/functions/playlist-chunk?id='+encodeURIComponent(id)+'&offset='+offset,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
   if(!part.ok){let data={};try{data=await part.json()}catch{}throw new Error(data.error||'Falha ao receber uma parte da lista.')}
   const bytes=await part.arrayBuffer();if(!bytes.byteLength)throw new Error('A lista foi recebida incompleta.');
   pending+=decoder.decode(bytes,{stream:true});
