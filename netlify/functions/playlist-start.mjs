@@ -54,22 +54,5 @@ export default async (request) => {
     createdAt: Date.now()
   });
 
-  const workerUrl = new URL("/api/playlist-worker-invoke", request.url);
-  let launched;
-  try {
-    launched = await fetch(workerUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, sourceUrl })
-    });
-  } catch {
-    await store.setJSON("jobs/" + id, { state: "failed", tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt, error: "Não foi possível iniciar o processamento." });
-    return json(502, { error: "Não foi possível iniciar o processamento da lista." });
-  }
-  if (!launched.ok && launched.status !== 202) {
-    const detail = (await launched.text().catch(() => "")).slice(0, 240);
-    await store.setJSON("jobs/" + id, { state: "failed", tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt, error: "Falha HTTP " + launched.status });
-    return json(502, { error: "A Netlify não iniciou o processamento (HTTP " + launched.status + "). " + detail });
-  }
   return json(202, { id, token, expiresAt });
 };
