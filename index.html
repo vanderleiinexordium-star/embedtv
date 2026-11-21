@@ -199,7 +199,10 @@ const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function loadLargePlaylist(url){
  const start=await fetch('/.netlify/functions/playlist-start',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({url})});
  const started=await start.json();if(!start.ok)throw new Error(started.error||'Não foi possível iniciar o carregamento.');
- const {id,token}=started;let status;
+ const {id,token}=started;
+ const worker=await fetch('/.netlify/functions/playlist-worker-background',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({id,sourceUrl:url})});
+ if(worker.status!==202) {let detail='';try{const data=await worker.json();detail=data.error||''}catch{}throw new Error(detail||'A Netlify não aceitou iniciar o processamento (HTTP '+worker.status+').')}
+ let status;
  for(let attempt=0;attempt<560;attempt++){
   await wait(1500);
   const check=await fetch('/.netlify/functions/playlist-status?id='+encodeURIComponent(id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
