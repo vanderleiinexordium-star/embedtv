@@ -159,15 +159,15 @@ $('search').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=
 $('previousPage').onclick=()=>{if(currentPage>1){currentPage--;loadChannels()}};
 $('nextPage').onclick=()=>{if(currentPage<totalPages){currentPage++;loadChannels()}};
 function parseM3U(text){
- const lines=text.replace(/^\\uFEFF/,'').split(/\\r?\\n/);const channels=[];let entry=null;
+ const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/);const channels=[];let entry=null;
  for(const raw of lines){const line=raw.trim();if(!line)continue;
   if(line.startsWith('#EXTINF:')){
    const comma=line.indexOf(',');const info=comma>=0?line.slice(0,comma):line;
-   const attr=(name)=>{const m=info.match(new RegExp('(?:^|\\\\s)'+name+'="([^"]*)"','i'));return m?m[1].trim():''};
+   const attr=(name)=>{const m=info.match(new RegExp('(?:^|\\s)'+name+'="([^"]*)"','i'));return m?m[1].trim():''};
    entry={name:(comma>=0?line.slice(comma+1).trim():'')||attr('tvg-name')||'Canal sem nome',logo:attr('tvg-logo'),category:attr('group-title')||'Outros'};continue;
   }
   if(line.startsWith('#'))continue;
-  if(entry&&/^https?:\\/\\//i.test(line)){channels.push({id:line+'|'+entry.name,name:entry.name,logo:entry.logo,category:entry.category,url:line});}
+  if(entry&&/^https?:\/\//i.test(line)){channels.push({id:line+'|'+entry.name,name:entry.name,logo:entry.logo,category:entry.category,url:line});}
   entry=null;
  }
  return channels;
