@@ -1,5 +1,7 @@
 const MAX_PLAYLIST_BYTES = 15 * 1024 * 1024;
-const ALLOWED_HOST = 'bluestarbr.com';
+const ALLOWED_HOSTS = new Set(['bluestarbr.com', 'overplus.xyz']);
+
+function inputOutput(value) { return value === 'm3u8' ? 'm3u8' : 'ts'; }
 
 function json(statusCode, body, contentType = 'application/json; charset=utf-8') {
   return { statusCode, headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' }, body };
@@ -14,11 +16,11 @@ exports.handler = async function (event) {
   try { url = new URL(String(input.url || '')); } catch { return json(400, JSON.stringify({ error: 'Informe um link M3U válido.' })); }
 
   if (!['http:', 'https:'].includes(url.protocol) ||
-      url.hostname.toLowerCase() !== ALLOWED_HOST ||
+      !ALLOWED_HOSTS.has(url.hostname.toLowerCase()) ||
       !['', '80', '443'].includes(url.port) ||
       url.pathname !== '/get.php' ||
       url.username || url.password || url.hash) {
-    return json(400, JSON.stringify({ error: 'Por segurança, este link precisa ser do endereço de lista autorizado e usar /get.php.' }));
+    return json(400, JSON.stringify({ error: 'Por segurança, este link precisa ser de um provedor autorizado e usar /get.php.' }));
   }
 
   const username = url.searchParams.get('username');
@@ -30,7 +32,8 @@ exports.handler = async function (event) {
   url.searchParams.set('username', username);
   url.searchParams.set('password', password);
   url.searchParams.set('type', 'm3u_plus');
-  url.searchParams.set('output', 'ts');
+  const output = inputOutput(url.searchParams.get('output'));
+  url.searchParams.set('output', output);
 
   try {
     const response = await fetch(url.toString(), {
