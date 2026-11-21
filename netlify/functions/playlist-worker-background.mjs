@@ -11,6 +11,15 @@ export default async (request) => {
   const { id, sourceUrl } = input || {};
   if (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id) || typeof sourceUrl !== "string") return;
 
+  let safeUrl;
+  try {
+    safeUrl = new URL(sourceUrl);
+    if (!["http:", "https:"].includes(safeUrl.protocol) ||
+        !new Set(["bluestarbr.com", "overplus.xyz"]).has(safeUrl.hostname.toLowerCase()) ||
+        !["", "80", "443"].includes(safeUrl.port) ||
+        safeUrl.pathname !== "/get.php" || safeUrl.username || safeUrl.password || safeUrl.hash) return;
+  } catch { return; }
+
   const store = getStore("playbibostv-playlists");
   const jobKey = "jobs/" + id;
   const meta = await store.get(jobKey, { type: "json", consistency: "strong" });
@@ -18,7 +27,7 @@ export default async (request) => {
 
   try {
     await store.setJSON(jobKey, { ...meta, state: "downloading", startedAt: Date.now() });
-    const response = await fetch(sourceUrl, {
+    const response = await fetch(safeUrl.toString(), {
       method: "GET",
       redirect: "manual",
       headers: { Accept: "application/x-mpegURL, audio/x-mpegurl, text/plain, */*", "User-Agent": "PlayBibosTV/1.0" },
