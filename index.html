@@ -75,16 +75,56 @@ function render(){
   const cat=document.createElement('span');cat.className='muted small';cat.textContent=c.cat;
   el.append(img,name,cat);el.onclick=()=>play(c);$('channels').append(el);
  });
-}
 function play(c){
- const src=safeUrl(c.url);
- $('currentName').textContent=c.name;$('currentDesc').textContent=src?'Reproduzindo transmissão selecionada':'A API não informou um link direto de reprodução para este canal.';
- $('currentLogo').src=safeUrl(c.logo);$('currentLogo').style.visibility=safeUrl(c.logo)?'visible':'hidden';
- const v=$('video');if(hls){hls.destroy();hls=null}v.pause();v.removeAttribute('src');v.load();
- if(!src)return;
- if(window.Hls&&Hls.isSupported()&&src.includes('.m3u8')){hls=new Hls();hls.loadSource(src);hls.attachMedia(v);hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}))}
- else if(v.canPlayType('application/vnd.apple.mpegurl')||!src.includes('.m3u8')){v.src=src;v.play().catch(()=>{})}
+  const src=safeUrl(c.url);
+  $('currentName').textContent=c.name;
+  $('currentDesc').textContent=src?'Reproduzindo transmissão selecionada':'Link indisponível';
+  $('currentLogo').src=safeUrl(c.logo);
+  $('currentLogo').style.visibility=safeUrl(c.logo)?'visible':'hidden';
+
+  const v=$('video');
+
+  if(hls){
+    hls.destroy();
+    hls=null;
+  }
+
+  const oldFrame=$('channelFrame');
+  if(oldFrame) oldFrame.remove();
+
+  v.pause();
+  v.removeAttribute('src');
+  v.load();
+  v.style.display='block';
+
+  if(!src) return;
+
+  const direct=/\.(m3u8|mp4|webm|ogg)(?:$|[?#])/i.test(src);
+
+  if(direct){
+    if(window.Hls && Hls.isSupported() && /\.m3u8(?:$|[?#])/i.test(src)){
+      hls=new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(v);
+      hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}));
+    }else{
+      v.src=src;
+      v.play().catch(()=>{});
+    }
+  }else{
+    v.style.display='none';
+
+    const frame=document.createElement('iframe');
+    frame.id='channelFrame';
+    frame.src=src;
+    frame.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+    frame.allowFullscreen=true;
+    frame.style.cssText='width:100%;height:100%;min-height:240px;border:0;background:#000';
+
+    v.parentNode.insertBefore(frame,v.nextSibling);
+  }
 }
+
 function categories(){
  const cats=[...new Set(all.map(c=>c.cat).filter(Boolean))].sort();
  $('categories').innerHTML='';
