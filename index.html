@@ -168,7 +168,7 @@ function renderCurrentPlayer(){
  $('playerModeMessage').textContent='O player alternativo tenta abrir o endereço diretamente. Alguns canais podem não ser compatíveis.';
  if(!src){$('currentDesc').textContent='Endereço de transmissão indisponível';updatePlayerModes(false);return;}
  const directFile=/\.(m3u8|mp4|webm|ogg)(?:$|[?#])/i.test(src);
- updatePlayerModes(!directFile);
+ updatePlayerModes(true);
  if(currentPlayerMode==='primary'&&!directFile){
   video.style.display='none';const frame=document.createElement('iframe');frame.id='channelFrame';frame.src=src;
   frame.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';frame.allowFullscreen=true;
